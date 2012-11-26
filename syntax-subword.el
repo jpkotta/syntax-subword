@@ -126,17 +126,23 @@
       (backward-syntax-or-subword n)
     (forward-syntax-or-subword n)))
 
-(defun syntax-subword-delete ()
-  (interactive)
-  (delete-instead-of-kill (syntax-subword-kill)))
+(defun syntax-subword-kill (&optional n)
+  (interactive "^p")
+  (let ((beg (point))
+        (end (save-excursion (forward-syntax-or-subword n) (point))))
+    (kill-region beg end)))
 
-(defun syntax-subword-backward-kill ()
-  (interactive)
-  (kill-region (backward-syntax-or-subword-pos) (point)))
+(defun syntax-subword-delete (&optional n)
+  (interactive "^p")
+  (delete-instead-of-kill (syntax-subword-kill n)))
 
-(defun syntax-subword-backward-delete ()
-  (interactive)
-  (delete-instead-of-kill (syntax-subword-backward-kill)))
+(defun syntax-subword-backward-kill (&optional n)
+  (interactive "^p")
+  (syntax-subword-kill (- n)))
+
+(defun syntax-subword-backward-delete (&optional n)
+  (interactive "^p")
+  (delete-instead-of-kill (syntax-subword-backward-kill n)))
 
 (defalias 'syntax-subword-mark 'subword-mark)
 (defalias 'syntax-subword-transpose 'subword-transpose)
