@@ -49,7 +49,9 @@
 (defvar syntax-subword-mode-map
   (let ((map (make-sparse-keymap)))
     (dolist (old-and-new
-             '((forward-word         forward-syntax-or-subword)
+             '((right-word           right-syntax-or-subword)
+               (left-word            left-syntax-or-subword)
+               (forward-word         forward-syntax-or-subword)
                (backward-word        backward-syntax-or-subword)
                (mark-word            syntax-subword-mark)
                (kill-word            syntax-subword-kill)
@@ -65,6 +67,15 @@
         (define-key map (vector 'remap oldcmd) newcmd)))
     map)
   "Keymap used in `syntax-subword-mode' minor mode.")
+
+;; make these work with CUA shift-selection
+(dolist (c '(forward-syntax-or-subword
+             backward-syntax-or-subword
+             right-syntax-or-subword
+             left-syntax-or-subword
+             forward-syntax
+             backward-syntax))
+  (put c 'CUA 'move))
 
 ;;;###autoload
 (define-minor-mode syntax-subword-mode
@@ -84,26 +95,36 @@
 (define-global-minor-mode global-syntax-subword-mode syntax-subword-mode
   (lambda () (syntax-subword-mode 1)))
 
-(defun forward-syntax-or-subword ()
+(defun forward-syntax-or-subword (&optional n)
   "Go forward by either the next change in syntax or a
   subword (see `subword-mode' for a description of
   subwords)."
-  (interactive)
-  (goto-char (forward-syntax-or-subword-pos)))
+  (interactive "^p")
+  (cond
+   ((< 0 n)
+    (dotimes (i n)
+      (goto-char (forward-syntax-or-subword-pos))))
+   ((> 0 n)
+    (dotimes (i (- n))
+      (goto-char (backward-syntax-or-subword-pos))))))
 
-(put 'forward-syntax-or-subword 'CUA 'move)
-
-(defun backward-syntax-or-subword ()
+(defun backward-syntax-or-subword (&optional n)
   "Go backward to the previous change in syntax or subword (see
   `subword-mode' for a description of subwords)."
-  (interactive)
-  (goto-char (backward-syntax-or-subword-pos)))
+  (interactive "^p")
+ (forward-syntax-or-subword (- n)))
 
-(put 'backward-syntax-or-subword 'CUA 'move)
+(defun right-syntax-or-subword (&optional n)
+  (interactive "^p")
+  (if (eq (current-bidi-paragraph-direction) 'left-to-right)
+      (forward-syntax-or-subword n)
+    (backward-syntax-or-subword n)))
 
-(defun syntax-subword-kill ()
-  (interactive)
-  (kill-region (point) (forward-syntax-or-subword-pos)))
+(defun left-syntax-or-subword (&optional n)
+  (interactive "^p")
+  (if (eq (current-bidi-paragraph-direction) 'left-to-right)
+      (backward-syntax-or-subword n)
+    (forward-syntax-or-subword n)))
 
 (defun syntax-subword-delete ()
   (interactive)
@@ -139,15 +160,11 @@
         (skip-syntax-backward (string (char-syntax (char-before)))))
       (setq arg (+ arg inc)))))
 
-(put 'forward-syntax 'CUA 'move)
-
 (defun backward-syntax (&optional arg)
   "Like `backward-word', but jump to the next change in syntax.
   This is closer to Vim's behavior when moving by words."
   (interactive "p")
   (forward-syntax (- 0 (or arg 1))))
-
-(put 'backward-syntax 'CUA 'move)
 
 (defun forward-syntax-or-subword-pos ()
   (let (subword-pos syntax-pos)
