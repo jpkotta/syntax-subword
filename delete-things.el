@@ -37,50 +37,36 @@
 
 
 (defmacro delete-instead-of-kill (&rest body)
-  "Replaces kill-region with delete-region in `body'."
+  "Replaces `kill-region' with `delete-region' in BODY."
   `(flet ((kill-region (beg end &optional yank-handler) (delete-region beg end)))
      ,@body))
 
 (defun delete-syntax (arg)
+  "Like `kill-syntax', but does not save to the `kill-ring'."
   (interactive "*p")
   (delete-instead-of-kill (kill-syntax arg)))
 (put 'delete-syntax 'CUA 'move)
 
 (defun backward-delete-syntax (arg)
+  "Like `backward-kill-syntax', but does not save to the `kill-ring'."
   (interactive "*p")
   (delete-syntax (- arg)))
 (put 'backward-delete-syntax 'CUA 'move)
 
 (defun delete-word (arg)
-  "Delete characters forward until encountering the end of a word.
-With argument, do this that many times."
+  "Like `kill-word', but does not save to the `kill-ring'."
   (interactive "*p")
   (delete-instead-of-kill (kill-word arg)))
 (put 'delete-word 'CUA 'move)
 
 (defun backward-delete-word (arg)
-  "Delete characters backward until encountering the end of a word.
-With argument, do this ARG many times."
+  "Like `backward-kill-word', but does not save to the `kill-ring'."
   (interactive "*p")
   (delete-word (- arg)))
 (put 'backward-delete-word 'CUA 'move)
 
 (defun delete-line (&optional arg)
-  "Delete the rest of the current line; if no nonblanks there, delete thru newline.
-With prefix argument ARG, delete that many lines from point.
-Negative arguments delete lines backward.
-With zero argument, deletes the text before point on the current line.
-
-When calling from a program, nil means \"no arg\",
-a number counts as a prefix arg.
-
-To delete a whole line, when point is not at the beginning, type \
-\\[move-beginning-of-line] \\[delete-line] \\[delete-line].
-
-If `kill-whole-line' is non-nil, then this command deletes the whole line
-including its terminating newline, when used at the beginning of a line
-with no argument.  As a consequence, you can always delete a whole line
-by typing \\[move-beginning-of-line] \\[delete-line]."
+  "Like `kill-line', but does not save to the `kill-ring'."
   (interactive "*P")
   (delete-instead-of-kill (kill-line arg)))
 
