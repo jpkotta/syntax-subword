@@ -160,7 +160,7 @@
   (interactive "p")
   (let ((arg (or arg 1))
         (inc (if (and arg (< arg 0)) 1 -1)))
-    (while (not (= arg 0))
+    (while (not (or (= arg 0) (eobp) (bobp)))
       (if (> arg 0)
           (skip-syntax-forward (string (char-syntax (char-after))))
         (skip-syntax-backward (string (char-syntax (char-before)))))
