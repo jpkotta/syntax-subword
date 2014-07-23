@@ -39,12 +39,18 @@
 ;; fine-grained, to the point that you almost never need to operate by
 ;; single characters anymore.  Vim's word operations are similar to
 ;; this mode's.
+;;
+;; Stops on spaces can be eliminated by setting
+;; `syntax-subword-skip-spaces' to non-nil.
       
 ;;; Code:
 
 
 (require 'subword)
 (require 'delete-things)
+
+(defvar syntax-subword-skip-spaces nil
+  "When non-nil, do not stop on spaces.")
 
 (defvar syntax-subword-mode-map
   (let ((map (make-sparse-keymap)))
@@ -97,16 +103,16 @@
 
 (defun forward-syntax-or-subword (&optional n)
   "Go forward by either the next change in syntax or a
-  subword (see `subword-mode' for a description of
-  subwords)."
+subword (see `subword-mode' for a description of subwords)."
   (interactive "^p")
-  (cond
-   ((< 0 n)
-    (dotimes (i n)
-      (goto-char (forward-syntax-or-subword-pos))))
-   ((> 0 n)
-    (dotimes (i (- n))
-      (goto-char (backward-syntax-or-subword-pos))))))
+  (let ((move (lambda () (goto-char
+                     (if (< 0 n)
+                         (forward-syntax-or-subword-pos)
+                       (backward-syntax-or-subword-pos))))))
+    (dotimes (i (abs n))
+      (if syntax-subword-skip-spaces
+          (while (= 32 (char-after (funcall move))))
+        (funcall move)))))
 
 (defun backward-syntax-or-subword (&optional n)
   "Go backward to the previous change in syntax or subword (see
