@@ -166,7 +166,7 @@ subword (see `subword-mode' for a description of subwords)."
   (interactive "p")
   (let ((arg (or arg 1))
         (inc (if (and arg (< arg 0)) 1 -1)))
-    (while (not (or (= arg 0) (eobp) (bobp)))
+    (while (not (or (= arg 0) (and (> arg 0) (eobp)) (and (< arg 0) (bobp))))
       (if (> arg 0)
           (skip-syntax-forward (string (char-syntax (char-after))))
         (skip-syntax-backward (string (char-syntax (char-before)))))
