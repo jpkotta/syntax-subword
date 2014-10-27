@@ -47,7 +47,95 @@
 
 
 (require 'subword)
-(require 'delete-things)
+
+
+;;; miscellaneous utilities to delete and kill text
+
+;; recommended keybindings:
+
+;; (defalias 'kill-syntax 'syntax-subword-kill-syntax)
+;; (defalias 'kill-syntax-backward 'syntax-subword-kill-syntax-backward)
+;; (defalias 'delete-syntax 'syntax-subword-delete-syntax)
+;; (defalias 'backward-delete-syntax 'syntax-subword-backward-delete-syntax)
+;; (defalias 'delete-word 'syntax-subword-delete-word)
+;; (defalias 'backward-delete-word 'syntax-subword-backward-delete-word)
+;; (defalias 'delete-line 'syntax-subword-delete-line)
+
+;; (global-set-key (kbd "C-k") 'delete-line)
+;; (global-set-key (kbd "C-S-k") 'kill-line)
+
+;; (global-set-key (kbd "M-SPC") 'delete-horizontal-space)
+;; (global-set-key (kbd "M-S-SPC") 'delete-blank-lines)
+
+;; (global-set-key (kbd "<C-S-delete>") 'delete-syntax)
+;; (global-set-key (kbd "<C-S-backspace>") 'backward-delete-syntax)
+;; (global-set-key (kbd "C-<delete>") 'delete-word)
+;; (global-set-key (kbd "M-d") 'delete-word)
+;; (global-set-key (kbd "C-<backspace>") 'backward-delete-word)
+
+;; from Jonathan Arkell (http://stackoverflow.com/questions/154097/whats-in-your-emacs/154980#154980)
+;;;###autoload
+(defun syntax-subword-kill-syntax (&optional arg)
+  "Kill ARG sets of syntax characters after point."
+  (interactive "p")
+  (let ((arg (or arg 1))
+        (inc (if (and arg (< arg 0)) 1 -1))
+        (opoint (point)))
+    (while (not (= arg 0))
+      (if (> arg 0)
+          (skip-syntax-forward (string (char-syntax (char-after))))
+        (skip-syntax-backward (string (char-syntax (char-before)))))
+      (setq arg (+ arg inc)))
+    (kill-region opoint (point))))
+
+;;;###autoload
+(defun syntax-subword-kill-syntax-backward (&optional arg)
+  "Kill ARG sets of syntax characters preceding point."
+  (interactive "p")
+  (syntax-subword-kill-syntax (- 0 (or arg 1))))
+
+
+(defmacro syntax-subword-delete-instead-of-kill (&rest body)
+  "Replaces `kill-region' with `delete-region' in BODY."
+  `(flet ((kill-region (beg end &optional yank-handler) (delete-region beg end)))
+     ,@body))
+
+;;;###autoload
+(defun syntax-subword-delete-syntax (arg)
+  "Like `kill-syntax', but does not save to the `kill-ring'."
+  (interactive "*p")
+  (syntax-subword-delete-instead-of-kill (kill-syntax arg)))
+(put 'syntax-subword-delete-syntax 'CUA 'move)
+
+;;;###autoload
+(defun syntax-subword-backward-delete-syntax (arg)
+  "Like `backward-kill-syntax', but does not save to the `kill-ring'."
+  (interactive "*p")
+  (syntax-subword-delete-syntax (- arg)))
+(put 'syntax-subword-backward-delete-syntax 'CUA 'move)
+
+;;;###autoload
+(defun syntax-subword-delete-word (arg)
+  "Like `kill-word', but does not save to the `kill-ring'."
+  (interactive "*p")
+  (syntax-subword-delete-instead-of-kill (kill-word arg)))
+(put 'syntax-subword-delete-word 'CUA 'move)
+
+;;;###autoload
+(defun syntax-subword-backward-delete-word (arg)
+  "Like `backward-kill-word', but does not save to the `kill-ring'."
+  (interactive "*p")
+  (syntax-subword-delete-word (- arg)))
+(put 'syntax-subword-backward-delete-word 'CUA 'move)
+
+;;;###autoload
+(defun syntax-subword-delete-line (&optional arg)
+  "Like `kill-line', but does not save to the `kill-ring'."
+  (interactive "*P")
+  (syntax-subword-delete-instead-of-kill (kill-line arg)))
+
+
+;;; syntax-subword
 
 (defvar syntax-subword-skip-spaces nil
   "When non-nil, do not stop on spaces.")
@@ -62,8 +150,8 @@
                (mark-word            syntax-subword-mark)
                (kill-word            syntax-subword-kill)
                (backward-kill-word   syntax-subword-backward-kill)
-               (delete-word          syntax-subword-delete)
-               (backward-delete-word syntax-subword-backward-delete)
+               (syntax-subword-delete-word syntax-subword-delete)
+               (syntax-subword-backward-delete-word syntax-subword-backward-delete)
                (transpose-words      syntax-subword-transpose)
                (capitalize-word      syntax-subword-capitalize)
                (upcase-word          syntax-subword-upcase)
@@ -140,7 +228,7 @@ subword (see `subword-mode' for a description of subwords)."
 
 (defun syntax-subword-delete (&optional n)
   (interactive "^p")
-  (delete-instead-of-kill (syntax-subword-kill n)))
+  (syntax-subword-delete-instead-of-kill (syntax-subword-kill n)))
 
 (defun syntax-subword-backward-kill (&optional n)
   (interactive "^p")
@@ -148,7 +236,7 @@ subword (see `subword-mode' for a description of subwords)."
 
 (defun syntax-subword-backward-delete (&optional n)
   (interactive "^p")
-  (delete-instead-of-kill (syntax-subword-backward-kill n)))
+  (syntax-subword-delete-instead-of-kill (syntax-subword-backward-kill n)))
 
 (defalias 'syntax-subword-mark 'subword-mark)
 (defalias 'syntax-subword-transpose 'subword-transpose)
