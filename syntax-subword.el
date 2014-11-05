@@ -3,7 +3,7 @@
 ;; Copyright (C) 2012 Jonathan Kotta
 
 ;; Author: Jonathan Kotta <jpkotta@gmail.com>
-;; Version: 0.1
+;; Version: 0.2
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -42,10 +42,15 @@
 ;;
 ;; Stops on spaces can be eliminated by setting
 ;; `syntax-subword-skip-spaces' to non-nil.
-      
+
+;; TODO
+
+;; some of these names (the "miscellaneous utilities") should be changed
+
 ;;; Code:
 
 
+(require 'cl-lib)
 (require 'subword)
 
 
@@ -53,25 +58,17 @@
 
 ;; recommended keybindings:
 
-;; (defalias 'kill-syntax 'syntax-subword-kill-syntax)
-;; (defalias 'kill-syntax-backward 'syntax-subword-kill-syntax-backward)
-;; (defalias 'delete-syntax 'syntax-subword-delete-syntax)
-;; (defalias 'backward-delete-syntax 'syntax-subword-backward-delete-syntax)
-;; (defalias 'delete-word 'syntax-subword-delete-word)
-;; (defalias 'backward-delete-word 'syntax-subword-backward-delete-word)
-;; (defalias 'delete-line 'syntax-subword-delete-line)
-
-;; (global-set-key (kbd "C-k") 'delete-line)
+;; (global-set-key (kbd "C-k") 'syntax-subword-delete-line)
 ;; (global-set-key (kbd "C-S-k") 'kill-line)
 
 ;; (global-set-key (kbd "M-SPC") 'delete-horizontal-space)
 ;; (global-set-key (kbd "M-S-SPC") 'delete-blank-lines)
 
-;; (global-set-key (kbd "<C-S-delete>") 'delete-syntax)
-;; (global-set-key (kbd "<C-S-backspace>") 'backward-delete-syntax)
-;; (global-set-key (kbd "C-<delete>") 'delete-word)
-;; (global-set-key (kbd "M-d") 'delete-word)
-;; (global-set-key (kbd "C-<backspace>") 'backward-delete-word)
+;; (global-set-key (kbd "<C-S-delete>") 'syntax-subword-delete-syntax)
+;; (global-set-key (kbd "<C-S-backspace>") 'syntax-subword-backward-delete-syntax)
+;; (global-set-key (kbd "C-<delete>") 'syntax-subword-delete-word)
+;; (global-set-key (kbd "M-d") 'syntax-subword-delete-word)
+;; (global-set-key (kbd "C-<backspace>") 'syntax-subword-backward-delete-word)
 
 ;; from Jonathan Arkell (http://stackoverflow.com/questions/154097/whats-in-your-emacs/154980#154980)
 ;;;###autoload
@@ -102,14 +99,15 @@
 
 ;;;###autoload
 (defun syntax-subword-delete-syntax (arg)
-  "Like `kill-syntax', but does not save to the `kill-ring'."
+  "Like `syntax-subword-kill-syntax', but does not save to the `kill-ring'."
   (interactive "*p")
-  (syntax-subword-delete-instead-of-kill (kill-syntax arg)))
+  (syntax-subword-delete-instead-of-kill
+   (syntax-subword-kill-syntax arg)))
 (put 'syntax-subword-delete-syntax 'CUA 'move)
 
 ;;;###autoload
 (defun syntax-subword-backward-delete-syntax (arg)
-  "Like `backward-kill-syntax', but does not save to the `kill-ring'."
+  "Like `syntax-subword-backward-kill-syntax', but does not save to the `kill-ring'."
   (interactive "*p")
   (syntax-subword-delete-syntax (- arg)))
 (put 'syntax-subword-backward-delete-syntax 'CUA 'move)
@@ -143,10 +141,10 @@
 (defvar syntax-subword-mode-map
   (let ((map (make-sparse-keymap)))
     (dolist (old-and-new
-             '((right-word           right-syntax-or-subword)
-               (left-word            left-syntax-or-subword)
-               (forward-word         forward-syntax-or-subword)
-               (backward-word        backward-syntax-or-subword)
+             '((right-word           syntax-subword-right)
+               (left-word            syntax-subword-left)
+               (forward-word         syntax-subword-forward)
+               (backward-word        syntax-subword-backward)
                (mark-word            syntax-subword-mark)
                (kill-word            syntax-subword-kill)
                (backward-kill-word   syntax-subword-backward-kill)
@@ -161,15 +159,6 @@
         (define-key map (vector 'remap oldcmd) newcmd)))
     map)
   "Keymap used in `syntax-subword-mode' minor mode.")
-
-;; make these work with CUA shift-selection
-(dolist (c '(forward-syntax-or-subword
-             backward-syntax-or-subword
-             right-syntax-or-subword
-             left-syntax-or-subword
-             forward-syntax
-             backward-syntax))
-  (put c 'CUA 'move))
 
 ;;;###autoload
 (define-minor-mode syntax-subword-mode
@@ -189,41 +178,38 @@
 (define-global-minor-mode global-syntax-subword-mode syntax-subword-mode
   (lambda () (syntax-subword-mode 1)))
 
-(defun forward-syntax-or-subword (&optional n)
+(defun syntax-subword-forward (&optional n)
   "Go forward by either the next change in syntax or a
 subword (see `subword-mode' for a description of subwords)."
   (interactive "^p")
-  (let ((move (lambda () (goto-char
-                     (if (< 0 n)
-                         (forward-syntax-or-subword-pos)
-                       (backward-syntax-or-subword-pos))))))
-    (dotimes (i (abs n))
-      (if syntax-subword-skip-spaces
-          (while (= 32 (char-after (funcall move))))
-        (funcall move)))))
+  (syntax-subword-forward-1 n))
+(put 'syntax-subword-forward 'CUA 'move)
 
-(defun backward-syntax-or-subword (&optional n)
+(defun syntax-subword-backward (&optional n)
   "Go backward to the previous change in syntax or subword (see
   `subword-mode' for a description of subwords)."
   (interactive "^p")
- (forward-syntax-or-subword (- n)))
+ (syntax-subword-forward (- n)))
+(put 'syntax-subword-backward 'CUA 'move)
 
-(defun right-syntax-or-subword (&optional n)
+(defun syntax-subword-right (&optional n)
   (interactive "^p")
   (if (eq (current-bidi-paragraph-direction) 'left-to-right)
-      (forward-syntax-or-subword n)
-    (backward-syntax-or-subword n)))
+      (syntax-subword-forward n)
+    (syntax-subword-backward n)))
+(put 'syntax-subword-right 'CUA 'move)
 
-(defun left-syntax-or-subword (&optional n)
+(defun syntax-subword-left (&optional n)
   (interactive "^p")
   (if (eq (current-bidi-paragraph-direction) 'left-to-right)
-      (backward-syntax-or-subword n)
-    (forward-syntax-or-subword n)))
+      (syntax-subword-backward n)
+    (syntax-subword-forward n)))
+(put 'syntax-subword-left 'CUA 'move)
 
 (defun syntax-subword-kill (&optional n)
   (interactive "^p")
   (let ((beg (point))
-        (end (save-excursion (forward-syntax-or-subword n) (point))))
+        (end (save-excursion (syntax-subword-forward n) (point))))
     (kill-region beg end)))
 
 (defun syntax-subword-delete (&optional n)
@@ -248,46 +234,54 @@ subword (see `subword-mode' for a description of subwords)."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; internal functions
 
-(defun forward-syntax (&optional arg)
+(defun syntax-subword-forward-syntax (&optional arg)
   "Like `forward-word', but jump to the next change in syntax.
   This is closer to Vim's behavior when moving by words."
   (interactive "p")
-  (let ((arg (or arg 1))
-        (inc (if (and arg (< arg 0)) 1 -1)))
-    (while (not (or (= arg 0) (and (> arg 0) (eobp)) (and (< arg 0) (bobp))))
-      (if (> arg 0)
+  (let* ((count (or arg 1))
+         (inc (if (< count 0) 1 -1)))
+    (while (not (or (= count 0) (and (> count 0) (eobp)) (and (< count 0) (bobp))))
+      (if (> count 0)
           (skip-syntax-forward (string (char-syntax (char-after))))
         (skip-syntax-backward (string (char-syntax (char-before)))))
-      (setq arg (+ arg inc)))))
+      (setq count (+ count inc)))))
+(put 'syntax-subword-forward-syntax 'CUA 'move)
 
-(defun backward-syntax (&optional arg)
+(defun syntax-subword-backward-syntax (&optional arg)
   "Like `backward-word', but jump to the next change in syntax.
   This is closer to Vim's behavior when moving by words."
   (interactive "p")
-  (forward-syntax (- 0 (or arg 1))))
+  (syntax-subword-forward-syntax (- 0 (or arg 1))))
+(put 'syntax-subword-backward-syntax 'CUA 'move)
 
-(defun forward-syntax-or-subword-pos ()
-  (let (subword-pos syntax-pos)
-    (save-excursion
-      (forward-syntax)
-      (setq syntax-pos (point)))
-    (save-excursion
-      (subword-forward)
-      (setq subword-pos (point)))
-    ;; always move at least one char forward
-    (max (1+ (point)) (min subword-pos syntax-pos))))
+(defun syntax-subword-forward-1 (count)
+  "Move point forward COUNT subwords or syntax changes.
 
-(defun backward-syntax-or-subword-pos ()
-  (let (subword-pos syntax-pos)
-    (save-excursion
-      (backward-syntax)
-      (setq syntax-pos (point)))
-    (save-excursion
-      (subword-backward)
-      (setq subword-pos (point)))
-    ;; always move at least one char backward
-    (min (1- (point)) (max syntax-pos subword-pos))))
+If `syntax-subword-skip-spaces' is non-nil, keep going if at a
+space (don't decrement count).
 
-
+Negative COUNT moves backwards."
+  (let* ((sign (cl-signum count))
+         (count (abs count))
+         subword-pos
+         syntax-pos)
+    (while (< 0 count)
+      (save-excursion
+        (syntax-subword-forward-syntax sign)
+        (setq syntax-pos (point)))
+      (save-excursion
+        (subword-forward sign)
+        (setq subword-pos (point)))
+      ;; always move at least one char
+      (if (< 0 sign)
+          (goto-char (max (1+ (point)) (min subword-pos syntax-pos)))
+        (goto-char (min (1- (point)) (max subword-pos syntax-pos))))
+      (unless (and syntax-subword-skip-spaces
+                 (or 
+                  (and (< 0 sign) (looking-at "[[:space:]]"))
+                  (and (> 0 sign) (looking-back "[[:space:]]"))))
+        (setq count (1- count)))
+      )))
+
 (provide 'syntax-subword)
 ;;; syntax-subword.el ends here
