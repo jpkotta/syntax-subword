@@ -94,7 +94,9 @@
 
 (defmacro syntax-subword-delete-instead-of-kill (&rest body)
   "Replaces `kill-region' with `delete-region' in BODY."
-  `(flet ((kill-region (beg end &optional yank-handler) (delete-region beg end)))
+  `(cl-letf (((symbol-function 'kill-region)
+              (lambda (beg end &optional yank-handler)
+                (delete-region beg end))))
      ,@body))
 
 ;;;###autoload
