@@ -49,7 +49,9 @@
 (require 'subword)
 
 (defvar syntax-subword-skip-spaces nil
-  "When non-nil, do not stop on spaces.")
+  "When non-nil, do not stop on spaces.  
+When set to the special symbol 'consistent, stop at right edge of spaces 
+regardless of direction.")
 
 (defvar syntax-subword-mode-map
   (let ((map (make-sparse-keymap)))
@@ -179,10 +181,12 @@ Negative COUNT moves backwards."
       (if (< 0 sign)
           (goto-char (max (1+ (point)) (min subword-pos syntax-pos)))
         (goto-char (min (1- (point)) (max subword-pos syntax-pos))))
-      (unless (and syntax-subword-skip-spaces
-                 (or 
-                  (and (< 0 sign) (looking-at "[[:space:]]"))
-                  (and (> 0 sign) (looking-back "[[:space:]]"))))
+      (unless (cond ((eq syntax-subword-skip-spaces 'consistent)
+                     (looking-at "[[:space:]]"))
+                    (syntax-subword-skip-spaces
+                     (or 
+                      (and (< 0 sign) (looking-at "[[:space:]]"))
+                      (and (> 0 sign) (looking-back "[[:space:]]")))))
         (setq count (1- count)))
       )))
 
